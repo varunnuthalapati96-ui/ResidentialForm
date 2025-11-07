@@ -53,7 +53,6 @@
         .score-row input[type="number"]:focus { outline: none; border-color: #4472C4; }
         .validation-error { color: #e74c3c; font-size: 12px; margin-top: 5px; display: none; }
         .next-step-alert { background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 10px 15px; margin: 10px 0; display: none; color: #856404; font-weight: 500; }
-        /* .next-step-alert.show { display: block; } */ /* Disabled until clarification on trigger rules */
         .text-field { margin: 15px 0; }
         .text-field label { font-weight: bold; display: block; margin-bottom: 5px; }
         .text-field textarea { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 3px; font-family: inherit; font-size: 13px; resize: vertical;  min-height: 80px; max-height: 320px; }
@@ -207,13 +206,7 @@
                     'Procedures <a href="https://ilga.gov/agencies/JCAR/Sections?PartID=08900331&TitleDescription=TITLE%2089:%20%20SOCIAL%20SERVICES" target="_blank">331</a> Significant Event Reports',
                     'Rule <a href="https://ilga.gov/agencies/JCAR/Sections?PartID=08900384&TitleDescription=TITLE%2089:%20%20SOCIAL%20SERVICES" target="_blank">384</a> Behavior Treatment in Residential Child Care Facilities',
                     'Rule <a href="https://ilga.gov/agencies/JCAR/Sections?PartID=08900403&TitleDescription=TITLE%2089:%20%20SOCIAL%20SERVICES" target="_blank">403</a> Licensing Standards for Group Homes',
-                    'Rule <a href="https://ilga.gov/agencies/JCAR/Sections?PartID=08900404&TitleDescription=TITLE%2089:%20%20SOCIAL%20SERVICES" target="_blank">404</a> Licensing Standards for Child Care Institutions and Maternity Centers',
-                    'Program Plan <a href="https://www2.illinois.gov/dcfs/lookingtofoster/Documents/CFS%20968.pdf" target="_blank">CFS-968</a>',
-                    '&nbsp;&nbsp;&nbsp;&nbsp;Section 4.2 Minimum Staffing Expectations',
-                    '&nbsp;&nbsp;&nbsp;&nbsp;Sections 5.1 Provider Physical Plant',
-                    '&nbsp;&nbsp;&nbsp;&nbsp;Sections 5.2.7.6 Missing or Abducted Children and Youth in Care and Support Services',
-                    '&nbsp;&nbsp;&nbsp;&nbsp;Section 6.0 Treatment Goals/Service Plans',
-                    '&nbsp;&nbsp;&nbsp;&nbsp;Section 8.3 Immediate Reporting Requirements'
+                    'Rule <a href="https://ilga.gov/agencies/JCAR/Sections?PartID=08900404&TitleDescription=TITLE%2089:%20%20SOCIAL%20SERVICES" target="_blank">404</a> Licensing Standards for Child Care Institutions and Maternity Centers'
                 ],
                 items: [
                     { category: 'Physical Safety', description: 'Buildings are safe, clean, well-ventilated, properly light, and heated/cooled' },
@@ -503,10 +496,10 @@
         // Generate summary table
         function populateSummary() {
             const tbody = document.getElementById('summaryBody');
-            performanceStandards.forEach((ps, index) => {
+            performanceStandards.forEach(ps => {
                 const row = document.createElement('tr');
                 row.innerHTML = `
-                    <td><strong>${ps.title.split('.')[0]}.</strong> ${ps.title.split('.').slice(1).join('.')}</td>
+                    <td>${ps.title.replace(/<[^>]*>/g, '')}</td>
                     <td><input type="text" name="${ps.id}_intervention" style="width: 100%; border: none; background: transparent;"></td>
                     <td><input type="number" id="${ps.id}_summary_score" min="1" max="5" style="width: 60px;" readonly></td>
                 `;
@@ -542,7 +535,9 @@
 
                 ps.items.forEach((item, index) => {
                     const itemNum = index + 1;
-                    const itemText = item.category ? `<strong>${item.category}:</strong> ${item.description}` : item.description;
+                    const itemText = typeof item === 'string'
+                        ? item
+                        : (item.category ? `<strong>${item.category}:</strong> ${item.description}` : item.description);
                     html += `
                         <div class="assessment-item">
                             <div class="item-number"><strong>${itemNum}.</strong> ${itemText}</div>
@@ -566,6 +561,7 @@
                     `;
                 });
 
+                // Overall Performance Standard Comment WITHOUT Rebuttal
                 html += `
                     <div class="overall-comment-section">
                         <h3>Overall Performance Standard Comment</h3>
@@ -591,11 +587,6 @@
                             <label class="required">Recommendation:</label>
                             <div class="instruction">*Note the proposal course of action and/or solution to address the situation based off the assessment</div>
                             <textarea name="${ps.id}_recommendation" maxlength="4000" required></textarea>
-                            <div class="char-counter"><span class="count">0</span>/4000</div>
-                        </div>
-                        <div class="text-field">
-                            <label>Rebuttal:</label>
-                            <textarea name="${ps.id}_overall_rebuttal" maxlength="4000"></textarea>
                             <div class="char-counter"><span class="count">0</span>/4000</div>
                         </div>
                     </div>
@@ -627,7 +618,6 @@
                 const item = e.target.closest('.assessment-item');
                 const errorMsg = item.querySelector('.validation-error');
                 
-                // Validate score range (1-4)
                 if (value < 1 || value > 4 || isNaN(value)) {
                     e.target.style.borderColor = '#e74c3c';
                     if (errorMsg) errorMsg.style.display = 'block';
@@ -636,13 +626,12 @@
                     if (errorMsg) errorMsg.style.display = 'none';
                 }
 
-                // Update summary score (calculate average for PS)
                 const psId = e.target.dataset.ps;
                 updateSummaryScore(psId);
             }
         });
 
-        // Auto-calculate Rebuttal Expiration Date (2 days after Approved Date)
+        // Auto-calculate Rebuttal Expiration Date
         document.querySelector('input[name="approved_date"]')?.addEventListener('change', function() {
             const approvedDate = new Date(this.value);
             if (!isNaN(approvedDate)) {
@@ -655,7 +644,7 @@
             }
         });
 
-        // Date validation (chronological order)
+        // Date validation
         document.querySelector('input[name="submitted_date"]')?.addEventListener('change', validateDates);
         document.querySelector('input[name="approved_date"]')?.addEventListener('change', validateDates);
         document.querySelector('input[name="rebuttal_date"]')?.addEventListener('change', validateDates);
@@ -665,13 +654,11 @@
             const approved = new Date(document.querySelector('input[name="approved_date"]')?.value);
             const rebuttal = new Date(document.querySelector('input[name="rebuttal_date"]')?.value);
 
-            // Submitted Date ≤ Approved Date
             if (!isNaN(submitted) && !isNaN(approved) && submitted > approved) {
                 alert('Submitted Date must be before or equal to Approved Date');
                 document.querySelector('input[name="approved_date"]').value = '';
             }
 
-            // Rebuttal Date ≥ Submitted Date
             if (!isNaN(rebuttal) && !isNaN(submitted) && rebuttal < submitted) {
                 alert('Rebuttal Date must be after or equal to Submitted Date');
                 document.querySelector('input[name="rebuttal_date"]').value = '';
@@ -694,6 +681,8 @@
             if (count > 0) {
                 const average = Math.round(total / count);
                 document.getElementById(`${psId}_summary_score`).value = average;
+            } else {
+                document.getElementById(`${psId}_summary_score`).value = '';
             }
         }
 
@@ -714,4 +703,3 @@
     </script>
 </body>
 </html>
-
